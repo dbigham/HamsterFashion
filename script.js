@@ -313,10 +313,12 @@ const ITEM_LOOKUP = new Map(FASHION_ITEMS.map((item) => [item.id, item]));
 
 const selections = [];
 const savedOutfits = [];
+const SAVED_OUTFITS_STORAGE_KEY = "hamster-fashion-saved-outfits";
 let storyRequestId = 0;
 let currentImageStyle = "cartoon";
 
 function init() {
+  hydrateSavedOutfits();
   if (STYLE_SELECTOR && STYLE_SELECTOR.value) {
     setImageStyle(STYLE_SELECTOR.value);
   } else {
@@ -334,6 +336,70 @@ function init() {
   }
   if (SAVE_FORM) {
     SAVE_FORM.addEventListener("submit", handleSaveOutfit);
+  }
+}
+
+function hydrateSavedOutfits() {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return;
+  }
+
+  try {
+    const stored = window.localStorage.getItem(SAVED_OUTFITS_STORAGE_KEY);
+    if (!stored) {
+      return;
+    }
+
+    const parsed = JSON.parse(stored);
+    if (!Array.isArray(parsed)) {
+      return;
+    }
+
+    savedOutfits.length = 0;
+    let mutated = false;
+    parsed.forEach((entry) => {
+      if (!entry || typeof entry !== "object") {
+        return;
+      }
+
+      const { id, name, items, style, savedAt } = entry;
+
+      if (!Array.isArray(items) || items.length === 0) {
+        return;
+      }
+
+      const normalizedStyle = style === "photograph" ? "photograph" : "cartoon";
+      const filteredItems = items.filter((itemId) => ITEM_LOOKUP.has(itemId));
+      if (filteredItems.length === 0) {
+        return;
+      }
+
+      savedOutfits.push({
+        id: typeof id === "string" && id.trim() ? id : `outfit-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        name: typeof name === "string" && name.trim() ? name.trim() : "Saved Look",
+        items: filteredItems,
+        style: normalizedStyle,
+        savedAt: savedAt ? new Date(savedAt) : new Date(),
+      });
+      mutated = true;
+    });
+
+    while (savedOutfits.length > 20) {
+      savedOutfits.pop();
+      mutated = true;
+    }
+
+    if (mutated) {
+      persistSavedOutfits();
+    }
+  } catch (error) {
+    console.warn("Unable to load saved outfits", error);
+    savedOutfits.length = 0;
+    try {
+      window.localStorage.removeItem(SAVED_OUTFITS_STORAGE_KEY);
+    } catch (_) {
+      // ignore secondary storage errors
+    }
   }
 }
 
@@ -615,6 +681,7 @@ function handleSaveOutfit(event) {
     OUTFIT_NAME_INPUT.placeholder = "Give this look a name";
   }
 
+  persistSavedOutfits();
   renderSavedOutfits();
 }
 
@@ -729,7 +796,30 @@ function deleteOutfit(outfitId) {
     return;
   }
   savedOutfits.splice(index, 1);
+  persistSavedOutfits();
   renderSavedOutfits();
+}
+
+function persistSavedOutfits() {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return;
+  }
+
+  try {
+    const payload = savedOutfits.map((outfit) => ({
+      id: outfit.id,
+      name: outfit.name,
+      items: [...outfit.items],
+      style: outfit.style,
+      savedAt:
+        outfit.savedAt instanceof Date
+          ? outfit.savedAt.toISOString()
+          : new Date(outfit.savedAt).toISOString(),
+    }));
+    window.localStorage.setItem(SAVED_OUTFITS_STORAGE_KEY, JSON.stringify(payload));
+  } catch (error) {
+    console.warn("Unable to save outfits", error);
+  }
 }
 
 function isOutfitDuplicate(items, style) {
