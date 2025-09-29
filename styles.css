@@ -71,6 +71,25 @@ body {
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
+.photo-status {
+  position: absolute;
+  inset: auto 1.75rem 1.75rem 1.75rem;
+  padding: 0.75rem 1rem;
+  background: rgba(15, 23, 42, 0.85);
+  color: #f8fafc;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  text-align: center;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.25);
+  z-index: 2;
+}
+
+.photo-status.error {
+  background: rgba(220, 38, 38, 0.9);
+  box-shadow: 0 16px 30px rgba(220, 38, 38, 0.25);
+}
+
 .hamster-canvas {
   width: 100%;
   height: auto;
@@ -147,53 +166,15 @@ body {
   fill: rgba(0, 0, 0, 0.12);
 }
 
-.hamster-photo .body {
-  fill: url(#photoFur);
+.hamster-photo .photo-backdrop {
+  fill: rgba(226, 232, 240, 0.55);
+  stroke: rgba(148, 163, 184, 0.6);
+  stroke-width: 2;
 }
 
-.hamster-photo .belly {
-  fill: url(#photoBelly);
-}
-
-.hamster-photo .ears .ear {
-  fill: url(#photoFur);
-}
-
-.hamster-photo .ears .ear-inner {
-  fill: url(#photoEar);
-}
-
-.hamster-photo .face .cheek {
-  fill: rgba(255, 182, 193, 0.75);
-}
-
-.hamster-photo .face .eye {
-  fill: #1f2937;
-}
-
-.hamster-photo .face .eye-highlight {
-  fill: rgba(255, 255, 255, 0.85);
-}
-
-.hamster-photo .face .nose {
-  fill: #5b3318;
-}
-
-.hamster-photo .face .mouth,
-.hamster-photo .face .chin {
-  stroke: rgba(75, 40, 15, 0.9);
-  stroke-width: 3;
-  stroke-linecap: round;
-}
-
-.hamster-photo .whiskers path {
-  stroke: rgba(75, 40, 15, 0.85);
-  stroke-width: 2.5;
-  stroke-linecap: round;
-}
-
-.hamster-photo .paws ellipse {
-  fill: url(#photoFur);
+.hamster-photo image {
+  border-radius: 16px;
+  overflow: hidden;
 }
 
 .is-hidden {
