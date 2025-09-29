@@ -11,9 +11,15 @@ const STYLE_SELECTOR = document.getElementById("style-selector");
 const HAMSTER_FRAME = document.getElementById("hamster-frame");
 const HAMSTER_CARTOON = document.getElementById("hamster-cartoon");
 const HAMSTER_PHOTO = document.getElementById("hamster-photo");
+const HAMSTER_PHOTO_IMAGE = document.getElementById("hamster-photo-image");
+const HAMSTER_PHOTO_STATUS = document.getElementById("hamster-photo-status");
 const SAVE_FORM = document.getElementById("save-form");
 const OUTFIT_NAME_INPUT = document.getElementById("outfit-name");
 const SAVED_OUTFITS_LIST = document.getElementById("saved-outfits");
+
+const STYLE_CARTOON = "cartoon";
+const STYLE_REALISTIC = "realistic";
+const LEGACY_STYLE_PHOTOGRAPH = "photograph";
 
 const FASHION_ITEMS = [
   {
@@ -315,7 +321,17 @@ const selections = [];
 const savedOutfits = [];
 const SAVED_OUTFITS_STORAGE_KEY = "hamster-fashion-saved-outfits";
 let storyRequestId = 0;
-let currentImageStyle = "cartoon";
+let currentImageStyle = STYLE_CARTOON;
+const realisticImageCache = new Map();
+let realisticPhotoRequestId = 0;
+let pendingPhotoSignature = null;
+
+function normalizeImageStyle(style) {
+  if (style === STYLE_REALISTIC || style === LEGACY_STYLE_PHOTOGRAPH) {
+    return STYLE_REALISTIC;
+  }
+  return STYLE_CARTOON;
+}
 
 function init() {
   hydrateSavedOutfits();
@@ -323,6 +339,7 @@ function init() {
     setImageStyle(STYLE_SELECTOR.value);
   } else {
     applyImageStyle(currentImageStyle);
+    renderHamster();
   }
   renderSavedOutfits();
   updateOptions();
@@ -368,7 +385,7 @@ function hydrateSavedOutfits() {
         return;
       }
 
-      const normalizedStyle = style === "photograph" ? "photograph" : "cartoon";
+      const normalizedStyle = normalizeImageStyle(style);
       const filteredItems = items.filter((itemId) => ITEM_LOOKUP.has(itemId));
       if (filteredItems.length === 0) {
         return;
@@ -456,7 +473,7 @@ function handleSelection(optionId) {
   }
 
   toggleOptionButtons(true);
-  showAiOverlay(item.name);
+  showAiOverlay(`Dreaming up ${item.name} magic...`);
 
   const wait = 500 + Math.random() * 700;
   window.setTimeout(() => {
@@ -465,13 +482,26 @@ function handleSelection(optionId) {
     renderHistory();
     updateOptions();
     updateAiStory();
-    hideAiOverlay();
+    if (currentImageStyle !== STYLE_REALISTIC) {
+      hideAiOverlay();
+    }
     toggleOptionButtons(false);
   }, wait);
 }
 
 function renderHamster() {
   const selectedItems = selections.map((entry) => ITEM_LOOKUP.get(entry.id)).filter(Boolean);
+  if (currentImageStyle === STYLE_REALISTIC) {
+    renderRealisticHamster(selectedItems);
+  } else {
+    renderCartoonHamster(selectedItems);
+  }
+}
+
+function renderCartoonHamster(selectedItems) {
+  if (!BACKGROUND_LAYER || !FASHION_LAYER || !EFFECT_LAYER) {
+    return;
+  }
 
   BACKGROUND_LAYER.innerHTML = selectedItems
     .filter((item) => item.layer === "background")
@@ -487,6 +517,136 @@ function renderHamster() {
     .filter((item) => item.layer === "effects")
     .map((item) => item.render(item))
     .join("");
+}
+
+function clearCartoonLayers() {
+  if (BACKGROUND_LAYER) {
+    BACKGROUND_LAYER.innerHTML = "";
+  }
+  if (FASHION_LAYER) {
+    FASHION_LAYER.innerHTML = "";
+  }
+  if (EFFECT_LAYER) {
+    EFFECT_LAYER.innerHTML = "";
+  }
+}
+
+async function renderRealisticHamster(selectedItems) {
+  if (!HAMSTER_PHOTO_IMAGE) {
+    return;
+  }
+
+  clearCartoonLayers();
+  hidePhotoStatus();
+
+  const signature = getSelectionSignature(selectedItems);
+  const cached = realisticImageCache.get(signature);
+  if (cached) {
+    applyRealisticPhoto(cached);
+    hideAiOverlay();
+    return;
+  }
+
+  if (pendingPhotoSignature === signature) {
+    return;
+  }
+
+  pendingPhotoSignature = signature;
+  showAiOverlay("Capturing a realistic hamster photo...");
+
+  const requestId = ++realisticPhotoRequestId;
+
+  try {
+    const response = await fetch("/api/hamster-photo", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        selections: selectedItems.map((item) => ({
+          id: item.id,
+          name: item.name,
+          category: item.category,
+          description: item.description,
+        })),
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Request failed with status ${response.status}`);
+    }
+
+    const data = await response.json();
+    if (requestId !== realisticPhotoRequestId || currentImageStyle !== STYLE_REALISTIC) {
+      return;
+    }
+
+    if (data?.image) {
+      const photo = { src: data.image, alt: data.alt };
+      realisticImageCache.set(signature, photo);
+      applyRealisticPhoto(photo);
+      hidePhotoStatus();
+      hideAiOverlay();
+    } else {
+      throw new Error("Missing image data");
+    }
+  } catch (error) {
+    if (requestId === realisticPhotoRequestId && currentImageStyle === STYLE_REALISTIC) {
+      console.error("Realistic hamster generation failed", error);
+      showPhotoStatus("We couldn't snap a hamster photo. Try again soon.", true);
+      hideAiOverlay();
+    }
+  } finally {
+    if (requestId === realisticPhotoRequestId) {
+      pendingPhotoSignature = null;
+    }
+  }
+}
+
+function getSelectionSignature(selectedItems) {
+  if (!selectedItems || selectedItems.length === 0) {
+    return "__empty__";
+  }
+  return selectedItems
+    .map((item) => item?.id)
+    .filter(Boolean)
+    .sort()
+    .join("|");
+}
+
+function applyRealisticPhoto(photo) {
+  if (!HAMSTER_PHOTO_IMAGE || !photo || !photo.src) {
+    return;
+  }
+  HAMSTER_PHOTO_IMAGE.setAttribute("href", photo.src);
+  if (typeof HAMSTER_PHOTO_IMAGE.setAttributeNS === "function") {
+    HAMSTER_PHOTO_IMAGE.setAttributeNS("http://www.w3.org/1999/xlink", "href", photo.src);
+  }
+  if (photo.alt) {
+    HAMSTER_PHOTO_IMAGE.setAttribute("aria-label", photo.alt);
+  } else {
+    HAMSTER_PHOTO_IMAGE.removeAttribute("aria-label");
+  }
+}
+
+function showPhotoStatus(message, isError = false) {
+  if (!HAMSTER_PHOTO_STATUS) {
+    return;
+  }
+  HAMSTER_PHOTO_STATUS.textContent = message;
+  if (isError) {
+    HAMSTER_PHOTO_STATUS.classList.add("error");
+  } else {
+    HAMSTER_PHOTO_STATUS.classList.remove("error");
+  }
+  HAMSTER_PHOTO_STATUS.classList.remove("is-hidden");
+}
+
+function hidePhotoStatus() {
+  if (!HAMSTER_PHOTO_STATUS) {
+    return;
+  }
+  HAMSTER_PHOTO_STATUS.textContent = "";
+  HAMSTER_PHOTO_STATUS.classList.remove("error");
+  HAMSTER_PHOTO_STATUS.classList.add("is-hidden");
 }
 
 function renderHistory() {
@@ -605,12 +765,18 @@ function removeSelection(optionId) {
   updateAiStory();
 }
 
-function showAiOverlay(name) {
-  AI_OVERLAY_TEXT.textContent = `Dreaming up ${name} magic...`;
+function showAiOverlay(message) {
+  if (!AI_OVERLAY || !AI_OVERLAY_TEXT) {
+    return;
+  }
+  AI_OVERLAY_TEXT.textContent = message;
   AI_OVERLAY.classList.remove("hidden");
 }
 
 function hideAiOverlay() {
+  if (!AI_OVERLAY) {
+    return;
+  }
   AI_OVERLAY.classList.add("hidden");
 }
 
@@ -622,19 +788,28 @@ function toggleOptionButtons(disabled) {
 }
 
 function setImageStyle(style) {
-  const normalized = style === "photograph" ? "photograph" : "cartoon";
+  const normalized = normalizeImageStyle(style);
   currentImageStyle = normalized;
   applyImageStyle(normalized);
-  if (STYLE_SELECTOR && STYLE_SELECTOR.value !== normalized) {
-    STYLE_SELECTOR.value = normalized;
+  if (STYLE_SELECTOR) {
+    const selectorHasValue = Array.from(STYLE_SELECTOR.options).some(
+      (option) => option.value === normalized,
+    );
+    const legacyValue = normalized === STYLE_REALISTIC ? LEGACY_STYLE_PHOTOGRAPH : normalized;
+    const targetValue = selectorHasValue ? normalized : legacyValue;
+    if (STYLE_SELECTOR.value !== targetValue) {
+      STYLE_SELECTOR.value = targetValue;
+    }
   }
+  renderHamster();
 }
 
 function applyImageStyle(style) {
   if (!HAMSTER_CARTOON || !HAMSTER_PHOTO || !HAMSTER_FRAME) {
     return;
   }
-  if (style === "photograph") {
+  const isRealistic = style === STYLE_REALISTIC || style === LEGACY_STYLE_PHOTOGRAPH;
+  if (isRealistic) {
     HAMSTER_CARTOON.classList.add("is-hidden");
     HAMSTER_PHOTO.classList.remove("is-hidden");
     HAMSTER_FRAME.classList.add("photo-style");
@@ -642,6 +817,10 @@ function applyImageStyle(style) {
     HAMSTER_CARTOON.classList.remove("is-hidden");
     HAMSTER_PHOTO.classList.add("is-hidden");
     HAMSTER_FRAME.classList.remove("photo-style");
+    hidePhotoStatus();
+    realisticPhotoRequestId += 1;
+    pendingPhotoSignature = null;
+    hideAiOverlay();
   }
 }
 
@@ -759,7 +938,8 @@ function buildOutfitPreview(outfit) {
 }
 
 function formatSavedOutfitMeta(outfit) {
-  const styleLabel = outfit.style === "photograph" ? "Photograph" : "Cartoon";
+  const normalizedStyle = normalizeImageStyle(outfit.style);
+  const styleLabel = normalizedStyle === STYLE_REALISTIC ? "Realistic" : "Cartoon";
   const savedAt = outfit.savedAt instanceof Date ? outfit.savedAt : new Date(outfit.savedAt);
   return `${styleLabel} • ${savedAt.toLocaleString(undefined, {
     month: "short",
@@ -840,7 +1020,8 @@ function arraysEqual(a, b) {
 }
 
 function generateOutfitName() {
-  const base = currentImageStyle === "photograph" ? "Photo Look" : "Cartoon Look";
+  const normalizedStyle = normalizeImageStyle(currentImageStyle);
+  const base = normalizedStyle === STYLE_REALISTIC ? "Realistic Look" : "Cartoon Look";
   const count = savedOutfits.filter((outfit) => outfit.name.startsWith(base)).length + 1;
   return `${base} #${count}`;
 }

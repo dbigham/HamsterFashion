@@ -22,6 +22,7 @@
             <div class="spinner" aria-hidden="true"></div>
             <p id="ai-overlay-text">Summoning hamster glam...</p>
           </div>
+          <div class="photo-status is-hidden" id="hamster-photo-status" role="status"></div>
           <svg
             class="hamster-canvas"
             viewBox="0 0 220 260"
@@ -92,38 +93,16 @@
               </g>
             </g>
             <g class="hamster hamster-photo is-hidden" id="hamster-photo">
-              <ellipse class="shadow" cx="110" cy="240" rx="66" ry="16"></ellipse>
-              <g class="body-group">
-                <ellipse class="body" cx="110" cy="144" rx="76" ry="98"></ellipse>
-                <ellipse class="belly" cx="110" cy="172" rx="48" ry="66"></ellipse>
-                <g class="ears">
-                  <ellipse class="ear" cx="58" cy="54" rx="28" ry="30"></ellipse>
-                  <ellipse class="ear" cx="162" cy="54" rx="28" ry="30"></ellipse>
-                  <ellipse class="ear-inner" cx="58" cy="58" rx="18" ry="22"></ellipse>
-                  <ellipse class="ear-inner" cx="162" cy="58" rx="18" ry="22"></ellipse>
-                </g>
-                <g class="face">
-                  <ellipse class="cheek" cx="84" cy="128" rx="20" ry="18"></ellipse>
-                  <ellipse class="cheek" cx="136" cy="128" rx="20" ry="18"></ellipse>
-                  <ellipse class="eye" cx="88" cy="110" rx="11" ry="13"></ellipse>
-                  <ellipse class="eye" cx="132" cy="110" rx="11" ry="13"></ellipse>
-                  <circle class="eye-highlight" cx="84" cy="104" r="3"></circle>
-                  <circle class="eye-highlight" cx="128" cy="104" r="3"></circle>
-                  <path class="nose" d="M108 122 q4 -4 8 0 v10 h-8z"></path>
-                  <path class="mouth" d="M100 138 q10 10 20 0" fill="none"></path>
-                  <path class="chin" d="M104 146 q6 6 12 0" fill="none"></path>
-                  <g class="whiskers">
-                    <path d="M64 126 h32" />
-                    <path d="M64 138 h28" />
-                    <path d="M156 126 h-32" />
-                    <path d="M156 138 h-28" />
-                  </g>
-                </g>
-                <g class="paws">
-                  <ellipse cx="74" cy="214" rx="22" ry="26"></ellipse>
-                  <ellipse cx="146" cy="214" rx="22" ry="26"></ellipse>
-                </g>
-              </g>
+              <rect class="photo-backdrop" x="6" y="12" width="208" height="232" rx="18"></rect>
+              <image
+                id="hamster-photo-image"
+                x="10"
+                y="16"
+                width="200"
+                height="224"
+                preserveAspectRatio="xMidYMid slice"
+                role="img"
+              ></image>
             </g>
             <g id="fashion-layer"></g>
             <g id="effect-layer"></g>
@@ -142,7 +121,7 @@
           <label class="style-label" for="style-selector">Image style</label>
           <select id="style-selector" class="style-selector" aria-label="Select hamster image style">
             <option value="cartoon">Cartoon</option>
-            <option value="photograph">Photograph</option>
+            <option value="realistic">Realistic</option>
           </select>
         </div>
         <div class="option-grid" id="option-grid" aria-labelledby="options-title"></div>
