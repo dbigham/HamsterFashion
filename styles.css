@@ -378,3 +378,19 @@ body {
     scroll-behavior: auto !important;
   }
 }
+.story-output {
+  margin-top: 1rem;
+  padding: 1rem 1.25rem;
+  background: #f8fafc;
+  border-radius: 16px;
+  box-shadow: 0 12px 30px rgba(30, 64, 175, 0.12);
+  color: #1f2937;
+  min-height: 3.5rem;
+  line-height: 1.6;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.story-output.error {
+  background: #fef2f2;
+  color: #b91c1c;
+}

@@ -1,4 +1,4 @@
-const OPTION_GRID = document.getElementById("option-grid");
+﻿const OPTION_GRID = document.getElementById("option-grid");
 const REFRESH_BUTTON = document.getElementById("refresh-options");
 const HISTORY_LIST = document.getElementById("selection-history");
 const AI_OVERLAY = document.getElementById("ai-overlay");
@@ -6,6 +6,7 @@ const AI_OVERLAY_TEXT = document.getElementById("ai-overlay-text");
 const BACKGROUND_LAYER = document.getElementById("background-layer");
 const FASHION_LAYER = document.getElementById("fashion-layer");
 const EFFECT_LAYER = document.getElementById("effect-layer");
+const STORY_OUTPUT = document.getElementById("story-output");
 
 const FASHION_ITEMS = [
   {
@@ -304,6 +305,7 @@ const FASHION_ITEMS = [
 const ITEM_LOOKUP = new Map(FASHION_ITEMS.map((item) => [item.id, item]));
 
 const selections = [];
+let storyRequestId = 0;
 
 function init() {
   updateOptions();
@@ -373,6 +375,7 @@ function handleSelection(optionId) {
     renderHamster();
     renderHistory();
     updateOptions();
+    updateAiStory();
     hideAiOverlay();
     toggleOptionButtons(false);
   }, wait);
@@ -431,7 +434,7 @@ function renderHistory() {
     removeButton.className = "remove-button";
     removeButton.type = "button";
     removeButton.setAttribute("aria-label", `Remove ${item.name}`);
-    removeButton.textContent = "✕";
+    removeButton.textContent = "�o\u0007";
     removeButton.addEventListener("click", () => removeSelection(entry.id));
 
     li.appendChild(textWrapper);
@@ -441,6 +444,68 @@ function renderHistory() {
   });
 }
 
+async function updateAiStory() {
+  if (!STORY_OUTPUT) {
+    return;
+  }
+
+  const selectedItems = selections
+    .map((entry) => ITEM_LOOKUP.get(entry.id))
+    .filter(Boolean);
+
+  if (selectedItems.length === 0) {
+    STORY_OUTPUT.textContent = "Choose accessories to let our AI stylist narrate your hamster's runway moment.";
+    STORY_OUTPUT.classList.remove("error");
+    return;
+  }
+
+  STORY_OUTPUT.textContent = "Consulting our AI stylist...";
+  STORY_OUTPUT.classList.remove("error");
+
+  const requestId = ++storyRequestId;
+
+  try {
+    const response = await fetch("/api/fashion-story", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        selections: selectedItems.map((item) => ({
+          id: item.id,
+          name: item.name,
+          category: item.category,
+          description: item.description,
+        })),
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Request failed with status ${response.status}`);
+    }
+
+    const data = await response.json();
+    if (requestId !== storyRequestId) {
+      return;
+    }
+
+    if (data.story) {
+      STORY_OUTPUT.textContent = data.story;
+      STORY_OUTPUT.classList.remove("error");
+    } else {
+      STORY_OUTPUT.textContent = "Our AI stylist is speechless. Try a different combo!";
+      STORY_OUTPUT.classList.remove("error");
+    }
+  } catch (error) {
+    if (requestId !== storyRequestId) {
+      return;
+    }
+
+    console.error("Story generation failed", error);
+    STORY_OUTPUT.textContent =
+      "We couldn't reach the AI stylist. Try refreshing or checking the server.";
+    STORY_OUTPUT.classList.add("error");
+  }
+}
+
 function removeSelection(optionId) {
   const index = selections.findIndex((entry) => entry.id === optionId);
   if (index === -1) return;
@@ -448,6 +513,7 @@ function removeSelection(optionId) {
   renderHamster();
   renderHistory();
   updateOptions();
+  updateAiStory();
 }
 
 function showAiOverlay(name) {
@@ -467,4 +533,5 @@ function toggleOptionButtons(disabled) {
 }
 
 renderHistory();
+updateAiStory();
 init();

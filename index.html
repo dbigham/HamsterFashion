@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -89,7 +89,7 @@
         <div class="options-header">
           <h2 id="options-title">Choose the next look</h2>
           <button class="ghost-button" id="refresh-options" type="button">
-            ↻ Refresh choices
+            â†» Refresh choices
           </button>
         </div>
         <div class="option-grid" id="option-grid" aria-labelledby="options-title"></div>
@@ -98,8 +98,11 @@
       <section class="story-panel">
         <h2>Fashion Story So Far</h2>
         <p class="story-hint">
-          Click the ✕ to remove a piece and remix the look.
+          Click the âœ• to remove a piece and remix the look.
         </p>
+        <div class="story-output" id="story-output" aria-live="polite">
+          Choose accessories to let our AI stylist narrate your hamster's runway moment.
+        </div>
         <ul class="selection-history" id="selection-history"></ul>
       </section>
     </main>
@@ -111,3 +114,4 @@
     <script src="script.js" type="module"></script>
   </body>
 </html>
+
