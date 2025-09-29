@@ -77,6 +77,12 @@ body {
   display: block;
 }
 
+.hamster-photo-image {
+  clip-path: inset(0 round 22px);
+  image-rendering: auto;
+  transition: opacity 0.4s ease;
+}
+
 .stage {
   fill: url(#stageGradient);
 }
@@ -156,43 +162,6 @@ body {
 }
 
 .hamster-photo .ears .ear {
-  fill: url(#photoFur);
-}
-
-.hamster-photo .ears .ear-inner {
-  fill: url(#photoEar);
-}
-
-.hamster-photo .face .cheek {
-  fill: rgba(255, 182, 193, 0.75);
-}
-
-.hamster-photo .face .eye {
-  fill: #1f2937;
-}
-
-.hamster-photo .face .eye-highlight {
-  fill: rgba(255, 255, 255, 0.85);
-}
-
-.hamster-photo .face .nose {
-  fill: #5b3318;
-}
-
-.hamster-photo .face .mouth,
-.hamster-photo .face .chin {
-  stroke: rgba(75, 40, 15, 0.9);
-  stroke-width: 3;
-  stroke-linecap: round;
-}
-
-.hamster-photo .whiskers path {
-  stroke: rgba(75, 40, 15, 0.85);
-  stroke-width: 2.5;
-  stroke-linecap: round;
-}
-
-.hamster-photo .paws ellipse {
   fill: url(#photoFur);
 }
 

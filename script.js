@@ -316,6 +316,10 @@ const savedOutfits = [];
 const SAVED_OUTFITS_STORAGE_KEY = "hamster-fashion-saved-outfits";
 let storyRequestId = 0;
 let currentImageStyle = "cartoon";
+const photoCache = new Map();
+let activePhotoSignature = null;
+let photoRequestId = 0;
+let photoErrorTimeoutId = null;
 
 function init() {
   hydrateSavedOutfits();
@@ -456,7 +460,7 @@ function handleSelection(optionId) {
   }
 
   toggleOptionButtons(true);
-  showAiOverlay(item.name);
+  showAiOverlay(`Dreaming up ${item.name} magic...`);
 
   const wait = 500 + Math.random() * 700;
   window.setTimeout(() => {
@@ -487,6 +491,10 @@ function renderHamster() {
     .filter((item) => item.layer === "effects")
     .map((item) => item.render(item))
     .join("");
+
+  if (currentImageStyle === "photograph") {
+    refreshHamsterPhoto();
+  }
 }
 
 function renderHistory() {
@@ -605,13 +613,165 @@ function removeSelection(optionId) {
   updateAiStory();
 }
 
-function showAiOverlay(name) {
-  AI_OVERLAY_TEXT.textContent = `Dreaming up ${name} magic...`;
+function showAiOverlay(message) {
+  if (!AI_OVERLAY || !AI_OVERLAY_TEXT) {
+    return;
+  }
+  if (typeof message === "string" && message.trim()) {
+    AI_OVERLAY_TEXT.textContent = message;
+  }
   AI_OVERLAY.classList.remove("hidden");
 }
 
 function hideAiOverlay() {
+  if (!AI_OVERLAY) {
+    return;
+  }
+  if (photoErrorTimeoutId) {
+    window.clearTimeout(photoErrorTimeoutId);
+    photoErrorTimeoutId = null;
+  }
   AI_OVERLAY.classList.add("hidden");
+}
+
+function showPhotoError(message) {
+  if (typeof message !== "string" || !message.trim()) {
+    message = "We couldn't snap a hamster photo. Try again soon.";
+  }
+  if (typeof window !== "undefined" && (!AI_OVERLAY || !AI_OVERLAY_TEXT)) {
+    if (typeof window.alert === "function") {
+      window.alert(message);
+    }
+    return;
+  }
+  showAiOverlay(message);
+  if (photoErrorTimeoutId) {
+    window.clearTimeout(photoErrorTimeoutId);
+  }
+  photoErrorTimeoutId = window.setTimeout(() => {
+    hideAiOverlay();
+  }, 1800);
+}
+
+function setHamsterPhotoImage(dataUrl) {
+  if (!HAMSTER_PHOTO) {
+    return;
+  }
+  if (!dataUrl) {
+    HAMSTER_PHOTO.classList.add("is-hidden");
+    HAMSTER_PHOTO.removeAttribute("href");
+    if (typeof HAMSTER_PHOTO.removeAttributeNS === "function") {
+      HAMSTER_PHOTO.removeAttributeNS("http://www.w3.org/1999/xlink", "href");
+    }
+    return;
+  }
+
+  HAMSTER_PHOTO.setAttribute("href", dataUrl);
+  if (typeof HAMSTER_PHOTO.setAttributeNS === "function") {
+    try {
+      HAMSTER_PHOTO.setAttributeNS("http://www.w3.org/1999/xlink", "href", dataUrl);
+    } catch (error) {
+      // Ignore browsers that do not support setAttributeNS for href.
+    }
+  }
+
+  if (currentImageStyle === "photograph") {
+    HAMSTER_PHOTO.classList.remove("is-hidden");
+  }
+}
+
+function buildPhotoSignature(items) {
+  if (!Array.isArray(items) || items.length === 0) {
+    return "base";
+  }
+  return items
+    .map((item) => item.id)
+    .filter(Boolean)
+    .sort()
+    .join("|");
+}
+
+async function refreshHamsterPhoto() {
+  if (currentImageStyle !== "photograph" || !HAMSTER_PHOTO) {
+    return;
+  }
+
+  const selectedItems = selections
+    .map((entry) => ITEM_LOOKUP.get(entry.id))
+    .filter(Boolean);
+
+  const signature = buildPhotoSignature(selectedItems);
+
+  if (photoCache.has(signature)) {
+    const cachedImage = photoCache.get(signature);
+    activePhotoSignature = signature;
+    setHamsterPhotoImage(cachedImage);
+    return;
+  }
+
+  const requestId = ++photoRequestId;
+  const hasVisiblePhoto = Boolean(HAMSTER_PHOTO.getAttribute("href"));
+  if (!hasVisiblePhoto || activePhotoSignature !== signature) {
+    showAiOverlay("Snapping a hamster fashion photo...");
+  }
+
+  try {
+    const response = await fetch("/api/hamster-photo", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        selections: selectedItems.map((item) => ({
+          id: item.id,
+          name: item.name,
+          category: item.category,
+          description: item.description,
+        })),
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Request failed with status ${response.status}`);
+    }
+
+    const data = await response.json();
+    if (requestId !== photoRequestId || currentImageStyle !== "photograph") {
+      return;
+    }
+
+    const imageDataUrl =
+      typeof data?.image === "string"
+        ? data.image
+        : typeof data?.imageUrl === "string"
+        ? data.imageUrl
+        : null;
+
+    if (!imageDataUrl) {
+      throw new Error("No image data returned from server");
+    }
+
+    photoCache.set(signature, imageDataUrl);
+    if (photoCache.size > 10) {
+      const firstKey = photoCache.keys().next().value;
+      if (firstKey) {
+        photoCache.delete(firstKey);
+      }
+    }
+    activePhotoSignature = signature;
+    setHamsterPhotoImage(imageDataUrl);
+  } catch (error) {
+    if (requestId !== photoRequestId) {
+      return;
+    }
+    console.error("Photo generation failed", error);
+    activePhotoSignature = null;
+    if (currentImageStyle === "photograph") {
+      showPhotoError("We couldn't snap a hamster photo. Try again soon.");
+    }
+  } finally {
+    if (requestId === photoRequestId && currentImageStyle === "photograph" && !photoErrorTimeoutId) {
+      hideAiOverlay();
+    }
+  }
 }
 
 function toggleOptionButtons(disabled) {
@@ -628,6 +788,11 @@ function setImageStyle(style) {
   if (STYLE_SELECTOR && STYLE_SELECTOR.value !== normalized) {
     STYLE_SELECTOR.value = normalized;
   }
+  if (normalized === "photograph") {
+    refreshHamsterPhoto();
+  } else {
+    hideAiOverlay();
+  }
 }
 
 function applyImageStyle(style) {
@@ -636,8 +801,10 @@ function applyImageStyle(style) {
   }
   if (style === "photograph") {
     HAMSTER_CARTOON.classList.add("is-hidden");
-    HAMSTER_PHOTO.classList.remove("is-hidden");
     HAMSTER_FRAME.classList.add("photo-style");
+    if (HAMSTER_PHOTO.getAttribute("href")) {
+      HAMSTER_PHOTO.classList.remove("is-hidden");
+    }
   } else {
     HAMSTER_CARTOON.classList.remove("is-hidden");
     HAMSTER_PHOTO.classList.add("is-hidden");
@@ -793,6 +960,19 @@ function loadOutfit(outfitId) {
 function deleteOutfit(outfitId) {
   const index = savedOutfits.findIndex((entry) => entry.id === outfitId);
   if (index === -1) {
+    return;
+  }
+  const outfit = savedOutfits[index];
+  const confirmationMessage =
+    outfit && outfit.name
+      ? `Delete "${outfit.name}" from your saved looks?`
+      : "Delete this saved look?";
+  const confirmed =
+    typeof window === "undefined" || typeof window.confirm !== "function"
+      ? true
+      : window.confirm(confirmationMessage);
+
+  if (!confirmed) {
     return;
   }
   savedOutfits.splice(index, 1);
