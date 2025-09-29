@@ -15,6 +15,10 @@ const SAVE_FORM = document.getElementById("save-form");
 const OUTFIT_NAME_INPUT = document.getElementById("outfit-name");
 const SAVED_OUTFITS_LIST = document.getElementById("saved-outfits");
 
+const STYLE_CARTOON = "cartoon";
+const STYLE_REALISTIC = "realistic";
+const LEGACY_STYLE_PHOTOGRAPH = "photograph";
+
 const FASHION_ITEMS = [
   {
     id: "flower-crown",
@@ -315,7 +319,14 @@ const selections = [];
 const savedOutfits = [];
 const SAVED_OUTFITS_STORAGE_KEY = "hamster-fashion-saved-outfits";
 let storyRequestId = 0;
-let currentImageStyle = "cartoon";
+let currentImageStyle = STYLE_CARTOON;
+
+function normalizeImageStyle(style) {
+  if (style === STYLE_REALISTIC || style === LEGACY_STYLE_PHOTOGRAPH) {
+    return STYLE_REALISTIC;
+  }
+  return STYLE_CARTOON;
+}
 
 function init() {
   hydrateSavedOutfits();
@@ -368,7 +379,7 @@ function hydrateSavedOutfits() {
         return;
       }
 
-      const normalizedStyle = style === "photograph" ? "photograph" : "cartoon";
+      const normalizedStyle = normalizeImageStyle(style);
       const filteredItems = items.filter((itemId) => ITEM_LOOKUP.has(itemId));
       if (filteredItems.length === 0) {
         return;
@@ -622,11 +633,18 @@ function toggleOptionButtons(disabled) {
 }
 
 function setImageStyle(style) {
-  const normalized = style === "photograph" ? "photograph" : "cartoon";
+  const normalized = normalizeImageStyle(style);
   currentImageStyle = normalized;
   applyImageStyle(normalized);
-  if (STYLE_SELECTOR && STYLE_SELECTOR.value !== normalized) {
-    STYLE_SELECTOR.value = normalized;
+  if (STYLE_SELECTOR) {
+    const selectorHasValue = Array.from(STYLE_SELECTOR.options).some(
+      (option) => option.value === normalized,
+    );
+    const legacyValue = normalized === STYLE_REALISTIC ? LEGACY_STYLE_PHOTOGRAPH : normalized;
+    const targetValue = selectorHasValue ? normalized : legacyValue;
+    if (STYLE_SELECTOR.value !== targetValue) {
+      STYLE_SELECTOR.value = targetValue;
+    }
   }
 }
 
@@ -634,7 +652,8 @@ function applyImageStyle(style) {
   if (!HAMSTER_CARTOON || !HAMSTER_PHOTO || !HAMSTER_FRAME) {
     return;
   }
-  if (style === "photograph") {
+  const isRealistic = style === STYLE_REALISTIC || style === LEGACY_STYLE_PHOTOGRAPH;
+  if (isRealistic) {
     HAMSTER_CARTOON.classList.add("is-hidden");
     HAMSTER_PHOTO.classList.remove("is-hidden");
     HAMSTER_FRAME.classList.add("photo-style");
@@ -759,7 +778,8 @@ function buildOutfitPreview(outfit) {
 }
 
 function formatSavedOutfitMeta(outfit) {
-  const styleLabel = outfit.style === "photograph" ? "Photograph" : "Cartoon";
+  const normalizedStyle = normalizeImageStyle(outfit.style);
+  const styleLabel = normalizedStyle === STYLE_REALISTIC ? "Realistic" : "Cartoon";
   const savedAt = outfit.savedAt instanceof Date ? outfit.savedAt : new Date(outfit.savedAt);
   return `${styleLabel} • ${savedAt.toLocaleString(undefined, {
     month: "short",
@@ -840,7 +860,8 @@ function arraysEqual(a, b) {
 }
 
 function generateOutfitName() {
-  const base = currentImageStyle === "photograph" ? "Photo Look" : "Cartoon Look";
+  const normalizedStyle = normalizeImageStyle(currentImageStyle);
+  const base = normalizedStyle === STYLE_REALISTIC ? "Realistic Look" : "Cartoon Look";
   const count = savedOutfits.filter((outfit) => outfit.name.startsWith(base)).length + 1;
   return `${base} #${count}`;
 }
