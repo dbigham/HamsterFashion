@@ -7,6 +7,13 @@ const BACKGROUND_LAYER = document.getElementById("background-layer");
 const FASHION_LAYER = document.getElementById("fashion-layer");
 const EFFECT_LAYER = document.getElementById("effect-layer");
 const STORY_OUTPUT = document.getElementById("story-output");
+const STYLE_SELECTOR = document.getElementById("style-selector");
+const HAMSTER_FRAME = document.getElementById("hamster-frame");
+const HAMSTER_CARTOON = document.getElementById("hamster-cartoon");
+const HAMSTER_PHOTO = document.getElementById("hamster-photo");
+const SAVE_FORM = document.getElementById("save-form");
+const OUTFIT_NAME_INPUT = document.getElementById("outfit-name");
+const SAVED_OUTFITS_LIST = document.getElementById("saved-outfits");
 
 const FASHION_ITEMS = [
   {
@@ -305,13 +312,95 @@ const FASHION_ITEMS = [
 const ITEM_LOOKUP = new Map(FASHION_ITEMS.map((item) => [item.id, item]));
 
 const selections = [];
+const savedOutfits = [];
+const SAVED_OUTFITS_STORAGE_KEY = "hamster-fashion-saved-outfits";
 let storyRequestId = 0;
+let currentImageStyle = "cartoon";
 
 function init() {
+  hydrateSavedOutfits();
+  if (STYLE_SELECTOR && STYLE_SELECTOR.value) {
+    setImageStyle(STYLE_SELECTOR.value);
+  } else {
+    applyImageStyle(currentImageStyle);
+  }
+  renderSavedOutfits();
   updateOptions();
   REFRESH_BUTTON.addEventListener("click", () => {
     updateOptions();
   });
+  if (STYLE_SELECTOR) {
+    STYLE_SELECTOR.addEventListener("change", (event) => {
+      setImageStyle(event.target.value);
+    });
+  }
+  if (SAVE_FORM) {
+    SAVE_FORM.addEventListener("submit", handleSaveOutfit);
+  }
+}
+
+function hydrateSavedOutfits() {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return;
+  }
+
+  try {
+    const stored = window.localStorage.getItem(SAVED_OUTFITS_STORAGE_KEY);
+    if (!stored) {
+      return;
+    }
+
+    const parsed = JSON.parse(stored);
+    if (!Array.isArray(parsed)) {
+      return;
+    }
+
+    savedOutfits.length = 0;
+    let mutated = false;
+    parsed.forEach((entry) => {
+      if (!entry || typeof entry !== "object") {
+        return;
+      }
+
+      const { id, name, items, style, savedAt } = entry;
+
+      if (!Array.isArray(items) || items.length === 0) {
+        return;
+      }
+
+      const normalizedStyle = style === "photograph" ? "photograph" : "cartoon";
+      const filteredItems = items.filter((itemId) => ITEM_LOOKUP.has(itemId));
+      if (filteredItems.length === 0) {
+        return;
+      }
+
+      savedOutfits.push({
+        id: typeof id === "string" && id.trim() ? id : `outfit-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        name: typeof name === "string" && name.trim() ? name.trim() : "Saved Look",
+        items: filteredItems,
+        style: normalizedStyle,
+        savedAt: savedAt ? new Date(savedAt) : new Date(),
+      });
+      mutated = true;
+    });
+
+    while (savedOutfits.length > 20) {
+      savedOutfits.pop();
+      mutated = true;
+    }
+
+    if (mutated) {
+      persistSavedOutfits();
+    }
+  } catch (error) {
+    console.warn("Unable to load saved outfits", error);
+    savedOutfits.length = 0;
+    try {
+      window.localStorage.removeItem(SAVED_OUTFITS_STORAGE_KEY);
+    } catch (_) {
+      // ignore secondary storage errors
+    }
+  }
 }
 
 function sampleOptions(count) {
@@ -434,7 +523,7 @@ function renderHistory() {
     removeButton.className = "remove-button";
     removeButton.type = "button";
     removeButton.setAttribute("aria-label", `Remove ${item.name}`);
-    removeButton.textContent = "�o\u0007";
+    removeButton.textContent = "✕";
     removeButton.addEventListener("click", () => removeSelection(entry.id));
 
     li.appendChild(textWrapper);
@@ -530,6 +619,244 @@ function toggleOptionButtons(disabled) {
     button.disabled = disabled;
   });
   REFRESH_BUTTON.disabled = disabled;
+}
+
+function setImageStyle(style) {
+  const normalized = style === "photograph" ? "photograph" : "cartoon";
+  currentImageStyle = normalized;
+  applyImageStyle(normalized);
+  if (STYLE_SELECTOR && STYLE_SELECTOR.value !== normalized) {
+    STYLE_SELECTOR.value = normalized;
+  }
+}
+
+function applyImageStyle(style) {
+  if (!HAMSTER_CARTOON || !HAMSTER_PHOTO || !HAMSTER_FRAME) {
+    return;
+  }
+  if (style === "photograph") {
+    HAMSTER_CARTOON.classList.add("is-hidden");
+    HAMSTER_PHOTO.classList.remove("is-hidden");
+    HAMSTER_FRAME.classList.add("photo-style");
+  } else {
+    HAMSTER_CARTOON.classList.remove("is-hidden");
+    HAMSTER_PHOTO.classList.add("is-hidden");
+    HAMSTER_FRAME.classList.remove("photo-style");
+  }
+}
+
+function handleSaveOutfit(event) {
+  event.preventDefault();
+  if (selections.length === 0) {
+    emphasizeSaveInput("Choose an accessory first");
+    return;
+  }
+
+  const nameInput = OUTFIT_NAME_INPUT ? OUTFIT_NAME_INPUT.value.trim() : "";
+  const items = selections.map((entry) => entry.id);
+
+  if (isOutfitDuplicate(items, currentImageStyle)) {
+    emphasizeSaveInput("This look is already saved");
+    return;
+  }
+
+  const outfit = {
+    id:
+      typeof crypto !== "undefined" && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `outfit-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    name: nameInput || generateOutfitName(),
+    items: [...items],
+    style: currentImageStyle,
+    savedAt: new Date(),
+  };
+
+  savedOutfits.unshift(outfit);
+  if (savedOutfits.length > 20) {
+    savedOutfits.pop();
+  }
+
+  if (OUTFIT_NAME_INPUT) {
+    OUTFIT_NAME_INPUT.value = "";
+    OUTFIT_NAME_INPUT.placeholder = "Give this look a name";
+  }
+
+  persistSavedOutfits();
+  renderSavedOutfits();
+}
+
+function renderSavedOutfits() {
+  if (!SAVED_OUTFITS_LIST) {
+    return;
+  }
+
+  SAVED_OUTFITS_LIST.innerHTML = "";
+
+  if (savedOutfits.length === 0) {
+    const empty = document.createElement("li");
+    empty.className = "saved-empty";
+    empty.textContent = "No saved outfits yet. Build a look and save it here!";
+    SAVED_OUTFITS_LIST.appendChild(empty);
+    return;
+  }
+
+  savedOutfits.forEach((outfit) => {
+    const li = document.createElement("li");
+    li.className = "saved-outfit-item";
+
+    const header = document.createElement("div");
+    header.className = "saved-outfit-header";
+
+    const name = document.createElement("span");
+    name.className = "saved-outfit-name";
+    name.textContent = outfit.name;
+
+    const meta = document.createElement("span");
+    meta.className = "saved-outfit-meta";
+    meta.textContent = formatSavedOutfitMeta(outfit);
+
+    header.appendChild(name);
+    header.appendChild(meta);
+
+    const actions = document.createElement("div");
+    actions.className = "saved-outfit-actions";
+
+    const loadButton = document.createElement("button");
+    loadButton.type = "button";
+    loadButton.className = "load-button";
+    loadButton.textContent = "Load";
+    loadButton.addEventListener("click", () => loadOutfit(outfit.id));
+
+    const deleteButton = document.createElement("button");
+    deleteButton.type = "button";
+    deleteButton.className = "delete-button";
+    deleteButton.textContent = "Delete";
+    deleteButton.addEventListener("click", () => deleteOutfit(outfit.id));
+
+    actions.appendChild(loadButton);
+    actions.appendChild(deleteButton);
+
+    const preview = document.createElement("div");
+    preview.className = "saved-outfit-meta";
+    preview.textContent = buildOutfitPreview(outfit);
+
+    li.appendChild(header);
+    li.appendChild(preview);
+    li.appendChild(actions);
+    SAVED_OUTFITS_LIST.appendChild(li);
+  });
+}
+
+function buildOutfitPreview(outfit) {
+  const itemNames = outfit.items
+    .map((id) => ITEM_LOOKUP.get(id))
+    .filter(Boolean)
+    .map((item) => item.name);
+  if (itemNames.length === 0) {
+    return "No items selected";
+  }
+  return itemNames.join(", ");
+}
+
+function formatSavedOutfitMeta(outfit) {
+  const styleLabel = outfit.style === "photograph" ? "Photograph" : "Cartoon";
+  const savedAt = outfit.savedAt instanceof Date ? outfit.savedAt : new Date(outfit.savedAt);
+  return `${styleLabel} • ${savedAt.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  })}`;
+}
+
+function loadOutfit(outfitId) {
+  const outfit = savedOutfits.find((entry) => entry.id === outfitId);
+  if (!outfit) {
+    return;
+  }
+
+  selections.length = 0;
+  const timestamp = Date.now();
+  outfit.items.forEach((id, index) => {
+    if (ITEM_LOOKUP.has(id)) {
+      selections.push({ id, addedAt: timestamp + index });
+    }
+  });
+
+  setImageStyle(outfit.style);
+  renderHamster();
+  renderHistory();
+  updateOptions();
+  updateAiStory();
+}
+
+function deleteOutfit(outfitId) {
+  const index = savedOutfits.findIndex((entry) => entry.id === outfitId);
+  if (index === -1) {
+    return;
+  }
+  savedOutfits.splice(index, 1);
+  persistSavedOutfits();
+  renderSavedOutfits();
+}
+
+function persistSavedOutfits() {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return;
+  }
+
+  try {
+    const payload = savedOutfits.map((outfit) => ({
+      id: outfit.id,
+      name: outfit.name,
+      items: [...outfit.items],
+      style: outfit.style,
+      savedAt:
+        outfit.savedAt instanceof Date
+          ? outfit.savedAt.toISOString()
+          : new Date(outfit.savedAt).toISOString(),
+    }));
+    window.localStorage.setItem(SAVED_OUTFITS_STORAGE_KEY, JSON.stringify(payload));
+  } catch (error) {
+    console.warn("Unable to save outfits", error);
+  }
+}
+
+function isOutfitDuplicate(items, style) {
+  const normalizedItems = [...items].sort();
+  return savedOutfits.some((outfit) => {
+    if (outfit.style !== style) {
+      return false;
+    }
+    return arraysEqual(normalizedItems, [...outfit.items].sort());
+  });
+}
+
+function arraysEqual(a, b) {
+  if (a.length !== b.length) {
+    return false;
+  }
+  return a.every((value, index) => value === b[index]);
+}
+
+function generateOutfitName() {
+  const base = currentImageStyle === "photograph" ? "Photo Look" : "Cartoon Look";
+  const count = savedOutfits.filter((outfit) => outfit.name.startsWith(base)).length + 1;
+  return `${base} #${count}`;
+}
+
+function emphasizeSaveInput(placeholder) {
+  if (!OUTFIT_NAME_INPUT) {
+    return;
+  }
+  if (placeholder) {
+    OUTFIT_NAME_INPUT.placeholder = placeholder;
+  }
+  OUTFIT_NAME_INPUT.classList.add("attention");
+  window.setTimeout(() => {
+    OUTFIT_NAME_INPUT.classList.remove("attention");
+    OUTFIT_NAME_INPUT.placeholder = "Give this look a name";
+  }, 1200);
 }
 
 renderHistory();

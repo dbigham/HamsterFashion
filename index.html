@@ -17,7 +17,7 @@
 
     <main class="app-main">
       <section class="hamster-stage" aria-live="polite">
-        <div class="hamster-frame">
+        <div class="hamster-frame" id="hamster-frame">
           <div class="ai-overlay hidden" id="ai-overlay" role="status">
             <div class="spinner" aria-hidden="true"></div>
             <p id="ai-overlay-text">Summoning hamster glam...</p>
@@ -42,10 +42,23 @@
                 <stop offset="0%" stop-color="#fff4e0" />
                 <stop offset="100%" stop-color="#f6d6a8" />
               </radialGradient>
+              <radialGradient id="photoFur" cx="45%" cy="35%" r="70%">
+                <stop offset="0%" stop-color="#f5e2c8" />
+                <stop offset="60%" stop-color="#d9a362" />
+                <stop offset="100%" stop-color="#b67a3a" />
+              </radialGradient>
+              <radialGradient id="photoBelly" cx="50%" cy="50%" r="60%">
+                <stop offset="0%" stop-color="#fff1d6" />
+                <stop offset="100%" stop-color="#f0c08a" />
+              </radialGradient>
+              <radialGradient id="photoEar" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#ffd3e2" />
+                <stop offset="100%" stop-color="#f38bb6" />
+              </radialGradient>
             </defs>
             <rect class="stage" width="220" height="260" rx="24"></rect>
             <g id="background-layer"></g>
-            <g class="hamster" id="hamster-body">
+            <g class="hamster hamster-cartoon" id="hamster-cartoon">
               <ellipse class="shadow" cx="110" cy="236" rx="58" ry="12"></ellipse>
               <g class="body-group">
                 <ellipse class="body" cx="110" cy="142" rx="70" ry="92"></ellipse>
@@ -65,7 +78,6 @@
                   <circle class="eye-highlight" cx="131" cy="107" r="2.5"></circle>
                   <path class="nose" d="M108 120 q2 -2 4 0 v6 h-4z"></path>
                   <path class="mouth" d="M102 132 q8 8 16 0" fill="none"></path>
-                  <rect class="tooth" x="108" y="134" width="12" height="12" rx="2"></rect>
                   <g class="whiskers">
                     <path d="M70 126 h24" />
                     <path d="M70 134 h24" />
@@ -79,6 +91,40 @@
                 </g>
               </g>
             </g>
+            <g class="hamster hamster-photo is-hidden" id="hamster-photo">
+              <ellipse class="shadow" cx="110" cy="240" rx="66" ry="16"></ellipse>
+              <g class="body-group">
+                <ellipse class="body" cx="110" cy="144" rx="76" ry="98"></ellipse>
+                <ellipse class="belly" cx="110" cy="172" rx="48" ry="66"></ellipse>
+                <g class="ears">
+                  <ellipse class="ear" cx="58" cy="54" rx="28" ry="30"></ellipse>
+                  <ellipse class="ear" cx="162" cy="54" rx="28" ry="30"></ellipse>
+                  <ellipse class="ear-inner" cx="58" cy="58" rx="18" ry="22"></ellipse>
+                  <ellipse class="ear-inner" cx="162" cy="58" rx="18" ry="22"></ellipse>
+                </g>
+                <g class="face">
+                  <ellipse class="cheek" cx="84" cy="128" rx="20" ry="18"></ellipse>
+                  <ellipse class="cheek" cx="136" cy="128" rx="20" ry="18"></ellipse>
+                  <ellipse class="eye" cx="88" cy="110" rx="11" ry="13"></ellipse>
+                  <ellipse class="eye" cx="132" cy="110" rx="11" ry="13"></ellipse>
+                  <circle class="eye-highlight" cx="84" cy="104" r="3"></circle>
+                  <circle class="eye-highlight" cx="128" cy="104" r="3"></circle>
+                  <path class="nose" d="M108 122 q4 -4 8 0 v10 h-8z"></path>
+                  <path class="mouth" d="M100 138 q10 10 20 0" fill="none"></path>
+                  <path class="chin" d="M104 146 q6 6 12 0" fill="none"></path>
+                  <g class="whiskers">
+                    <path d="M64 126 h32" />
+                    <path d="M64 138 h28" />
+                    <path d="M156 126 h-32" />
+                    <path d="M156 138 h-28" />
+                  </g>
+                </g>
+                <g class="paws">
+                  <ellipse cx="74" cy="214" rx="22" ry="26"></ellipse>
+                  <ellipse cx="146" cy="214" rx="22" ry="26"></ellipse>
+                </g>
+              </g>
+            </g>
             <g id="fashion-layer"></g>
             <g id="effect-layer"></g>
           </svg>
@@ -89,8 +135,15 @@
         <div class="options-header">
           <h2 id="options-title">Choose the next look</h2>
           <button class="ghost-button" id="refresh-options" type="button">
-            â†» Refresh choices
+            ↻ Refresh choices
           </button>
+        </div>
+        <div class="style-control">
+          <label class="style-label" for="style-selector">Image style</label>
+          <select id="style-selector" class="style-selector" aria-label="Select hamster image style">
+            <option value="cartoon">Cartoon</option>
+            <option value="photograph">Photograph</option>
+          </select>
         </div>
         <div class="option-grid" id="option-grid" aria-labelledby="options-title"></div>
       </section>
@@ -98,12 +151,30 @@
       <section class="story-panel">
         <h2>Fashion Story So Far</h2>
         <p class="story-hint">
-          Click the âœ• to remove a piece and remix the look.
+          Click the ✕ to remove a piece and remix the look.
         </p>
         <div class="story-output" id="story-output" aria-live="polite">
           Choose accessories to let our AI stylist narrate your hamster's runway moment.
         </div>
         <ul class="selection-history" id="selection-history"></ul>
+      </section>
+
+      <section class="saved-panel">
+        <h2>Saved Looks</h2>
+        <p class="saved-hint">Name and stash your favorite ensembles for quick replays.</p>
+        <form class="save-form" id="save-form">
+          <label class="visually-hidden" for="outfit-name">Outfit name</label>
+          <input
+            type="text"
+            id="outfit-name"
+            class="save-input"
+            name="outfit-name"
+            placeholder="Give this look a name"
+            autocomplete="off"
+          />
+          <button type="submit" class="save-button">Save outfit</button>
+        </form>
+        <ul class="saved-outfits" id="saved-outfits" aria-live="polite"></ul>
       </section>
     </main>
 
