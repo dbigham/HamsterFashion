@@ -1,0 +1,117 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hamster Fashion Studio</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <h1>Hamster Fashion Studio</h1>
+      <p class="tagline">
+        Craft a fabulous look for your cuddly companion and let our whimsical AI
+        paint the scene!
+      </p>
+    </header>
+
+    <main class="app-main">
+      <section class="hamster-stage" aria-live="polite">
+        <div class="hamster-frame">
+          <div class="ai-overlay hidden" id="ai-overlay" role="status">
+            <div class="spinner" aria-hidden="true"></div>
+            <p id="ai-overlay-text">Summoning hamster glam...</p>
+          </div>
+          <svg
+            class="hamster-canvas"
+            viewBox="0 0 220 260"
+            role="img"
+            aria-labelledby="hamsterTitle hamsterDesc"
+          >
+            <title id="hamsterTitle">Fashionable hamster</title>
+            <desc id="hamsterDesc">
+              A friendly hamster standing upright, ready to model different
+              outfits.
+            </desc>
+            <defs>
+              <linearGradient id="stageGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stop-color="#fef6ff" />
+                <stop offset="100%" stop-color="#e6f6ff" />
+              </linearGradient>
+              <radialGradient id="bellyGradient" cx="50%" cy="45%" r="65%">
+                <stop offset="0%" stop-color="#fff4e0" />
+                <stop offset="100%" stop-color="#f6d6a8" />
+              </radialGradient>
+            </defs>
+            <rect class="stage" width="220" height="260" rx="24"></rect>
+            <g id="background-layer"></g>
+            <g class="hamster" id="hamster-body">
+              <ellipse class="shadow" cx="110" cy="236" rx="58" ry="12"></ellipse>
+              <g class="body-group">
+                <ellipse class="body" cx="110" cy="142" rx="70" ry="92"></ellipse>
+                <ellipse class="belly" cx="110" cy="164" rx="44" ry="60"></ellipse>
+                <g class="ears">
+                  <circle class="ear" cx="62" cy="60" r="24"></circle>
+                  <circle class="ear" cx="158" cy="60" r="24"></circle>
+                  <circle class="ear-inner" cx="62" cy="64" r="16"></circle>
+                  <circle class="ear-inner" cx="158" cy="64" r="16"></circle>
+                </g>
+                <g class="face">
+                  <circle class="cheek" cx="80" cy="128" r="18"></circle>
+                  <circle class="cheek" cx="140" cy="128" r="18"></circle>
+                  <circle class="eye" cx="87" cy="110" r="8"></circle>
+                  <circle class="eye" cx="133" cy="110" r="8"></circle>
+                  <circle class="eye-highlight" cx="85" cy="107" r="2.5"></circle>
+                  <circle class="eye-highlight" cx="131" cy="107" r="2.5"></circle>
+                  <path class="nose" d="M108 120 q2 -2 4 0 v6 h-4z"></path>
+                  <path class="mouth" d="M102 132 q8 8 16 0" fill="none"></path>
+                  <rect class="tooth" x="108" y="134" width="12" height="12" rx="2"></rect>
+                  <g class="whiskers">
+                    <path d="M70 126 h24" />
+                    <path d="M70 134 h24" />
+                    <path d="M150 126 h-24" />
+                    <path d="M150 134 h-24" />
+                  </g>
+                </g>
+                <g class="paws">
+                  <ellipse cx="76" cy="208" rx="18" ry="22"></ellipse>
+                  <ellipse cx="144" cy="208" rx="18" ry="22"></ellipse>
+                </g>
+              </g>
+            </g>
+            <g id="fashion-layer"></g>
+            <g id="effect-layer"></g>
+          </svg>
+        </div>
+      </section>
+
+      <section class="controls">
+        <div class="options-header">
+          <h2 id="options-title">Choose the next look</h2>
+          <button class="ghost-button" id="refresh-options" type="button">
+            â†» Refresh choices
+          </button>
+        </div>
+        <div class="option-grid" id="option-grid" aria-labelledby="options-title"></div>
+      </section>
+
+      <section class="story-panel">
+        <h2>Fashion Story So Far</h2>
+        <p class="story-hint">
+          Click the âœ• to remove a piece and remix the look.
+        </p>
+        <div class="story-output" id="story-output" aria-live="polite">
+          Choose accessories to let our AI stylist narrate your hamster's runway moment.
+        </div>
+        <ul class="selection-history" id="selection-history"></ul>
+      </section>
+    </main>
+
+    <footer class="app-footer">
+      <p>Made with love for stylish hamsters everywhere.</p>
+    </footer>
+
+    <script src="script.js" type="module"></script>
+  </body>
+</html>
+
